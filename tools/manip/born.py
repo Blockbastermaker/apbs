@@ -6,6 +6,14 @@ from pdb2pqr.io import read_pqr
 
 
 _LOGGER = logging.getLogger()
+ELECTRON_CHARGE = 1.6021773e-19
+AVOGADRO_NUMBER = 6.0221367e+23
+VACUUM_PERMIT = 8.8541878e-12
+SCALING = (
+    (1e-3)*(1e10)*ELECTRON_CHARGE*ELECTRON_CHARGE*AVOGADRO_NUMBER/(
+        4*np.pi*VACUUM_PERMIT
+    )
+)
 
 
 def build_parser():
@@ -65,6 +73,37 @@ def scale_distance2(distances2, radii):
     return distances2 / radii[:, None] / radii[None, :]
 
 
+def born_distances(coords, radii):
+    """Generate a matrix of effective Born distances.
+
+    :param np.ndarray coords:  array of atomic coordinates
+    :param np.ndarray radii:  array of atomic radii
+    :returns:  matrix of effective Born distances.
+    :rtype:  np.ndarray
+    """
+    distance2 = distance2_matrix(coords)
+    scaled2 = scale_distance2(distance2, radii)
+    radii_mat = np.outer(radii, radii)
+    distance2 = distance2 + np.multiply(radii_mat, np.exp(-0.25*scaled2))
+    return np.sqrt(distance2)
+
+
+def born_distance(pos1, pos2, radius1, radius2):
+    """Generate an effective Born distance.
+
+    :param np.ndarray pos1:  cooordinates of first atom
+    :param np.ndarray pos2:  coordinates of second atom
+    :param float radius1:  radius of first atom
+    :param float radius2:  radius of second atom
+    :returns:  effective Born distance
+    :rtype:  float
+    """
+    disp = pos1 - pos2
+    dist2 = np.dot(disp, disp)
+    dist2 = dist2 + radius1*radius2*np.exp(-0.25*dist2/radius1/radius2)
+    return np.sqrt(dist2)
+
+
 def main():
     """Main driver function."""
     parser = build_parser()
@@ -86,11 +125,26 @@ def main():
     coords = np.array(coords)
     charges = np.array(charges)
     radii = np.array(radii)
-    print(radii)
-    distances2 = distance2_matrix(coords)
-    print(distances2)
-    scaled2 = scale_distance2(distances2, radii)
-    print(scaled2)
+    # distances = born_distances(coords, radii)
+    # charges = np.outer(charges, charges)
+    # energies = np.divide(charges, distances)
+    # np.fill_diagonal(energies, 0.0)
+    # energies = 0.5*SCALING*energies
+    # print(energies)
+    # print(np.sum(energies, axis=0))
+    for iatom in range(natom):
+        charge1 = charges[iatom]
+        radius1 = radii[iatom]
+        pos1 = coords[iatom, :]
+        energy = 0
+        for jatom in range(iatom+1, natom):
+            charge2 = charges[jatom]
+            radius2 = radii[jatom]
+            pos2 = coords[jatom, :]
+            print(pos1, pos2)
+            dist = born_distance(pos1, pos2, radius1, radius2)
+            energy += SCALING*charge1*charge2/dist
+            print(energy)
 
 
 if __name__ == "__main__":

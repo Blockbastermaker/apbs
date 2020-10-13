@@ -104,8 +104,8 @@ def generate_molecules():
     :rtype:  pd.DataFrame
     """
     vertices = icosahedron()
-    radii = deque([1.0, 2.0, 0.0, 3.0])
-    charges = deque([-2.0, -1.0, 0.0, 1.0, 2.0])
+    radii = deque([0.5, 1.0, 2.0, 3.0])
+    charges = deque([-2.0, -1.0, 1.0, 2.0])
     point0 = np.array([0, 0, 0])
     atoms = []
     imol = 0
@@ -151,11 +151,9 @@ def generate_old_results(dielectric, born_binary, csv_path):
         out_path = "ion{:0>2}.out".format(mol_id)
         print("Generating output:  %s" % out_path)
         with open(out_path, "wt") as out_file:
-            run(
-                "%s -v -f %4.2f %s" % (
-                    BORN_BINARY, DIELECTRIC, pqr_path
-                ), stdout=out_file
-            )
+            born_cmd = args.apbs_c_binary
+            born_args = "-v -f %4.2f %s" % (DIELECTRIC, pqr_path)
+            run([born_cmd, born_args], stdout=out_file)
         print("Parsing output:  %s" % out_path)
         with open(out_path, "rt") as out_file:
             for result in parse_output(out_file):
